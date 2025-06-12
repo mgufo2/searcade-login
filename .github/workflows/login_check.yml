@@ -32,4 +32,4 @@ jobs:
           SEARCADE_ACCOUNTS: ${{ secrets.SEARCADE_ACCOUNTS }}
           TEL_TOK: ${{ secrets.TEL_TOK }}
           TEL_ID: ${{ secrets.TEL_ID }}
-        run: python searcode_login.py
+        run: python searcade_login.py
