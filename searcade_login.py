@@ -25,54 +25,62 @@ def send_telegram_message(message):
 def login_searcade(username, password):
     with sync_playwright() as p:
         # 在GitHub Actions环境中，通常需要headless模式
+        # 调试时可改为 False: browser = p.chromium.launch(headless=False)
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
-        # 访问Searcade登录页面
-        page.goto("https://searcade.userveria.com/login")
-
-        # 确保页面加载完成
-        page.wait_for_selector('input[name="username"]')
-        page.wait_for_selector('input[name="password"]')
-        page.wait_for_selector('button[type="submit"]')
-
-        # 输入邮箱地址或用户名和密码
-        page.fill('input[name="username"]', username)
-        page.fill('input[name="password"]', password)
-
-        # 点击登录按钮
-        page.click('button[type="submit"]')
-
-        # 等待登录后的页面跳转或错误消息
         try:
-            # 尝试等待登录成功后的某个元素或URL
-            # 这里需要根据实际登录成功后的页面内容来调整等待条件
-            # 假设登录成功后会跳转到根路径 / 或出现特定的仪表板元素
-            page.wait_for_url("https://searcade.userveria.com/", timeout=10000)
-            # 或者等待页面上某个只有登录成功后才会出现的元素
-            # page.wait_for_selector('.dashboard-element', timeout=10000)
-            print(f"账号 {username} 登录成功!")
-            return f"账号 {username} 登录成功!"
-        except Exception as e:
-            # 如果没有成功跳转，尝试查找错误消息
+            # 访问Searcade登录页面
+            page.goto("https://searcade.userveria.com/login", wait_until="domcontentloaded")
+
+            # ******** 根据您提供的HTML结果进行改进 ********
+            # “Email address or username”输入框的实际 name 属性是 "email"
+            username_selector = 'input[name="email"]'
+            # 密码框通常是 name="password"
+            password_selector = 'input[name="password"]'
+            # 按钮文本是“Login”
+            login_button_selector = 'button:has-text("Login")'
+
+            # 增加等待时间，防止网络延迟导致元素未及时出现
+            page.wait_for_selector(username_selector, timeout=30000)
+            page.wait_for_selector(password_selector, timeout=30000)
+            page.wait_for_selector(login_button_selector, timeout=30000)
+
+            # 输入邮箱地址或用户名和密码
+            page.fill(username_selector, username)
+            page.fill(password_selector, password)
+
+            # 点击登录按钮
+            page.click(login_button_selector)
+
+            # 等待登录后的页面跳转或错误消息
             try:
-                error_message_selector = '.alert.alert-danger' # 假设错误消息会出现在此类元素中
-                error_element = page.wait_for_selector(error_message_selector, timeout=3000)
-                if error_element:
-                    error_text = error_element.inner_text()
-                    print(f"账号 {username} 登录失败: {error_text}")
-                    return f"账号 {username} 登录失败: {error_text}"
-                else:
-                    print(f"账号 {username} 登录失败: 未检测到错误消息或成功跳转。")
-                    return f"账号 {username} 登录失败: 未检测到错误消息或成功跳转。"
-            except Exception as e_inner:
-                print(f"账号 {username} 登录失败: 未能跳转到预期页面且未找到错误消息。可能的原因: {e_inner}")
-                return f"账号 {username} 登录失败: 未能跳转到预期页面且未找到错误消息。"
+                page.wait_for_url("https://searcade.userveria.com/", timeout=15000)
+                print(f"账号 {username} 登录成功!")
+                return f"账号 {username} 登录成功!"
+            except Exception as e:
+                # 登录失败，尝试查找错误消息
+                error_message_selector = '.alert.alert-danger, .error-message, .form-error'
+                try:
+                    error_element = page.wait_for_selector(error_message_selector, timeout=5000)
+                    if error_element:
+                        error_text = error_element.inner_text().strip()
+                        print(f"账号 {username} 登录失败: {error_text}")
+                        return f"账号 {username} 登录失败: {error_text}"
+                    else:
+                        print(f"账号 {username} 登录失败: 未能跳转到预期页面且未检测到特定错误消息。")
+                        return f"账号 {username} 登录失败: 未能跳转到预期页面且未检测到特定错误消息。"
+                except Exception as e_inner:
+                    print(f"账号 {username} 登录失败: 未能跳转到预期页面且未找到错误消息。可能的原因: {e_inner}")
+                    return f"账号 {username} 登录失败: 未能跳转到预期页面且未找到错误消息。"
+        except Exception as e:
+            print(f"处理账号 {username} 时发生错误: {e}")
+            # page.screenshot(path=f"error_{username}.png") # 调试时可以取消注释
+            return f"账号 {username} 登录操作中断: {e}"
         finally:
             browser.close()
 
 if __name__ == "__main__":
-    # 从环境变量获取账号信息，格式为 "username1:password1 username2:password2"
     accounts_str = os.environ.get('SEARCADE_ACCOUNTS', '')
     if not accounts_str:
         error_msg = "环境变量 'SEARCADE_ACCOUNTS' 未设置或为空。请设置账号信息。"
@@ -85,7 +93,7 @@ if __name__ == "__main__":
 
     for account in accounts:
         try:
-            username, password = account.split(':', 1) # 使用split(':', 1)防止密码中包含冒号
+            username, password = account.split(':', 1)
             status = login_searcade(username, password)
             login_statuses.append(status)
             print(status)
