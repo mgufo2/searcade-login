@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install playwright requests
+          pip install playwright
 
       - name: Install Playwright browsers
         run: playwright install chromium
@@ -30,11 +30,12 @@ jobs:
       - name: Run login script
         env:
           SEARCADE_ACCOUNTS: ${{ secrets.SEARCADE_ACCOUNTS }}
-          TEL_TOK: ${{ secrets.TEL_TOK }}
-          TEL_ID: ${{ secrets.TEL_ID }}
+          # 移除了 TEL_TOK 和 TEL_ID 的环境变量配置，因为脚本不再使用它们
+          # TEL_TOK: ${{ secrets.TEL_TOK }}
+          # TEL_ID: ${{ secrets.TEL_ID }}
         run: python searcade_login.py
-        # 即使这里报错，也继续执行后续步骤，以便上传截图
-        continue-on-error: true
+        # 移除了 continue-on-error: true
+        # 因为我们希望脚本在失败时立即标记此步骤为失败，从而触发截图上传
 
       - name: Upload screenshots on failure
         # 仅在工作流的任何一个步骤失败时执行
