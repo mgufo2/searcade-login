@@ -25,16 +25,16 @@ def send_telegram_message(message):
 def login_searcade(username, password):
     with sync_playwright() as p:
         # 在GitHub Actions环境中，通常需要headless模式
-        # 调试时可改为 False: browser = p.chromium.launch(headless=False)
+        # 调试时可以在本地运行并改为 False: browser = p.chromium.launch(headless=False)
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
 
         try:
-            # 访问Searcade登录页面
-            page.goto("https://searcade.userveria.com/login", wait_until="domcontentloaded")
+            # 访问Searcade登录页面，等待网络空闲，确保所有网络请求都已停止
+            # 解决方案二: 更改 wait_until 为 "networkidle"
+            page.goto("https://searcade.userveria.com/login", wait_until="networkidle")
 
-            # ******** 根据您提供的HTML结果进行改进 ********
-            # “Email address or username”输入框的实际 name 属性是 "email"
+            # 根据您提供的HTML结果，用户名输入框的实际 name 属性是 "email"
             username_selector = 'input[name="email"]'
             # 密码框通常是 name="password"
             password_selector = 'input[name="password"]'
@@ -42,9 +42,10 @@ def login_searcade(username, password):
             login_button_selector = 'button:has-text("Login")'
 
             # 增加等待时间，防止网络延迟导致元素未及时出现
-            page.wait_for_selector(username_selector, timeout=30000)
-            page.wait_for_selector(password_selector, timeout=30000)
-            page.wait_for_selector(login_button_selector, timeout=30000)
+            # 解决方案二: 增加超时时间到 60 秒
+            page.wait_for_selector(username_selector, timeout=60000)
+            page.wait_for_selector(password_selector, timeout=60000)
+            page.wait_for_selector(login_button_selector, timeout=60000)
 
             # 输入邮箱地址或用户名和密码
             page.fill(username_selector, username)
@@ -66,21 +67,30 @@ def login_searcade(username, password):
                     if error_element:
                         error_text = error_element.inner_text().strip()
                         print(f"账号 {username} 登录失败: {error_text}")
+                        # 解决方案四: 登录失败时截图
+                        page.screenshot(path=f"login_fail_{username.replace('@', '_').replace('.', '_')}.png")
                         return f"账号 {username} 登录失败: {error_text}"
                     else:
                         print(f"账号 {username} 登录失败: 未能跳转到预期页面且未检测到特定错误消息。")
+                        # 解决方案四: 登录失败且未检测到特定错误消息时截图
+                        page.screenshot(path=f"login_no_error_msg_{username.replace('@', '_').replace('.', '_')}.png")
                         return f"账号 {username} 登录失败: 未能跳转到预期页面且未检测到特定错误消息。"
                 except Exception as e_inner:
                     print(f"账号 {username} 登录失败: 未能跳转到预期页面且未找到错误消息。可能的原因: {e_inner}")
+                    # 解决方案四: 查找错误消息时发生异常也截图
+                    page.screenshot(path=f"login_error_lookup_fail_{username.replace('@', '_').replace('.', '_')}.png")
                     return f"账号 {username} 登录失败: 未能跳转到预期页面且未找到错误消息。"
         except Exception as e:
+            # 捕获任何在页面操作中发生的异常，包括初始元素等待超时
             print(f"处理账号 {username} 时发生错误: {e}")
-            # page.screenshot(path=f"error_{username}.png") # 调试时可以取消注释
+            # 解决方案四: 关键：在这里截图，可以看到超时发生时页面处于什么状态
+            page.screenshot(path=f"timeout_error_{username.replace('@', '_').replace('.', '_')}.png")
             return f"账号 {username} 登录操作中断: {e}"
         finally:
             browser.close()
 
 if __name__ == "__main__":
+    # 从环境变量获取账号信息，格式为 "username1:password1 username2:password2"
     accounts_str = os.environ.get('SEARCADE_ACCOUNTS', '')
     if not accounts_str:
         error_msg = "环境变量 'SEARCADE_ACCOUNTS' 未设置或为空。请设置账号信息。"
@@ -93,7 +103,7 @@ if __name__ == "__main__":
 
     for account in accounts:
         try:
-            username, password = account.split(':', 1)
+            username, password = account.split(':', 1) # 使用split(':', 1)防止密码中包含冒号
             status = login_searcade(username, password)
             login_statuses.append(status)
             print(status)
