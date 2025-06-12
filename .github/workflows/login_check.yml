@@ -32,4 +32,15 @@ jobs:
           SEARCADE_ACCOUNTS: ${{ secrets.SEARCADE_ACCOUNTS }}
           TEL_TOK: ${{ secrets.TEL_TOK }}
           TEL_ID: ${{ secrets.TEL_ID }}
-        run: python searcade_login.py
+        run: python searcode_login.py
+        # 即使这里报错，也继续执行后续步骤，以便上传截图
+        continue-on-error: true
+
+      - name: Upload screenshots on failure
+        # 仅在工作流的任何一个步骤失败时执行
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-on-failure
+          # 匹配所有以 .png 结尾的文件，这些是我们脚本中保存的截图
+          path: "*.png"
