@@ -6,6 +6,9 @@ on:
     - cron: '0 0 * * *'
   workflow_dispatch: # 允许手动触发工作流
 
+permissions:
+  contents: write # 授予工作流写入仓库内容的权限
+
 jobs:
   login-check:
     runs-on: ubuntu-latest
