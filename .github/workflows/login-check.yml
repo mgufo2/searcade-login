@@ -3,7 +3,7 @@ name: Searcade Login Check
 on:
   schedule:
     # 每天 UTC 时间 00:00 运行
-    - cron: '0 0 * * *'
+    - cron: '16 41 */3 * *'
   workflow_dispatch: # 允许手动触发工作流
 
 permissions:
